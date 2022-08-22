@@ -1,0 +1,196 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Survival analysis of Heart Failure Patients 
+
+## Abstract
+
+Heart failure is a serious condition with high prevalence (about 2% in the adult population in developed countries, and more than 8% in patients older than 75 years). About 3–5% of hospital admissions are linked with heart failure incidents. Heart failure is the first cause of admission by healthcare professionals in their clinical practice. The costs are very high, reaching up to 2% of the total health costs in the developed countries. Building an effective disease management strategy requires analysis of large amount of data, early detection of the disease, assessment of the severity and early prediction of adverse events.
+
+## Introduction
+
+Heart failure — sometimes known as congestive heart failure — occurs when the heart muscle doesn't pump blood as well as it should. When this happens, blood often backs up and fluid can build up in the lungs, causing shortness of breath.
+
+Certain heart conditions, such as narrowed arteries in the heart (coronary artery disease) or high blood pressure, gradually leave the heart too weak or stiff to fill and pump blood properly.
+
+Proper treatment can improve the signs and symptoms of heart failure and may help some people live longer. Lifestyle changes — such as losing weight, exercising, reducing salt (sodium) in your diet and managing stress — can improve your quality of life. However, heart failure can be life-threatening. People with heart failure may have severe symptoms, and some may need a heart transplant or a ventricular assist device (VAD).
+
+One way to prevent heart failure is to prevent and control conditions that can cause it, such as coronary artery disease, high blood pressure, diabetes and obesity.
+
+## Dataset
+
+This dataset contains the medical records of 299 patients who had heart failure, collected during their follow-up period, where each patient profile has 13 clinical features.
+
+Thirteen (13) clinical features:
+
+- age: age of the patient (years)
+- anaemia (0 for no, 1 for yes): decrease of red blood cells or hemoglobin (boolean)
+- high blood pressure (0 for no, 1 for yes): if the patient has hypertension (boolean)
+- creatinine phosphokinase (CPK): level of the CPK enzyme in the blood (mcg/L)
+- diabetes (0 for no, 1 for yes): if the patient has diabetes (boolean)
+- ejection fraction: percentage of blood leaving the heart at each contraction (percentage)
+- platelets: platelets in the blood (kiloplatelets/mL)
+- sex: woman or man (binary)
+- serum creatinine: level of serum creatinine in the blood (mg/dL)
+- serum sodium: level of serum sodium in the blood (mEq/L)
+- smoking: if the patient smokes or not (boolean)
+- time: follow-up period (days)
+- [target] death event (0 for censored, 1 for death): if the patient deceased during the follow-up period (boolean) 
+
+```{r}
+#load relevant packages
+
+if(!require(survminer)){
+    install.packages("survminer")
+    library(survminer)
+}
+
+library(survival)
+library(ggplot2)
+library(tidyverse)
+
+if(!require(My.stepwise)){
+    install.packages("My.stepwise")
+    library(My.stepwise)
+}
+
+if(!require(corrr)){
+    install.packages("corrr")
+    library(corrr)
+}
+
+if(!require(gtools)){
+    install.packages("gtools")
+    library(gtools)
+}
+```
+```{r}
+df <- read.csv("https://archive.ics.uci.edu/ml/machine-learning-databases/00519/heart_failure_clinical_records_dataset.csv")
+head(df)
+```
+
+## EDA
+
+```{r}
+summary(df$age)
+```
+
+The minimum age for entry into the study was 40 years old, and the average age was 60 years.
+
+```{r}
+colSums(is.na(df))
+```
+
+## Kaplan-Meier Curves
+
+```{r}
+df_time=as.vector(df$time) 
+df_death=as.vector(df$DEATH_EVENT) 
+df_fit = surv_fit(Surv(df_time,df_death)~1, data=df) 
+plot(df_fit, main = "Kaplan-Meier Survival Function", xlab = "Time in Days", ylab = "S(t)", col = "blue")
+```
+The figure of Kaplan-Meier show the estimate data with 95% confidence interval.
+
+```{r}
+quantile(df_fit,c(0.25))$q # survival time at 25th percentile
+quantile(df_fit,c(0.5))$q  # survival time at 50th percentile
+```
+ The survival function never goes down 0.5, then no median survival rate.
+ 
+```{r}
+sfit <- summary(df_fit)
+sfit$surv[sfit$time == 50]
+```
+ 
+The probability of surviving past 50 days is 83.1%
+
+```{r}
+sfit$surv[sfit$time == 100]
+```
+
+The probability of surviving past 100 is 74.97%
+
+## Kaplan-Meier Survival for gender
+
+```{r}
+df_sex = as.factor(df$sex) 
+df_sex_fit = surv_fit(Surv(df_time,df_death)~sex, data=df) 
+
+plot(df_sex_fit, 
+     main = "Kaplan-Meier Survival Function for gender", 
+     xlab = "Time in Days ", 
+     ylab = "S(t)", 
+     col= c("blue","red")) 
+legend("bottomleft",legend = c("Female","Male"),fill=c("blue","red"))
+```
+
+## Kaplan-Meier Survival for anaemia
+
+```{r}
+df_anaemia = as.factor(df$anaemia) 
+df_anaemia_fit = surv_fit(Surv(df_time,df_death)~df_anaemia, data=df) 
+plot(df_anaemia_fit, main = "Kaplan-Meier Survival Function for Anaemia", xlab = "Time in Days ", ylab = "S(t)", col= c("blue","red")) 
+legend("bottomleft",legend = c("Non anaemia","Anaemia"),fill=c("blue","red"))
+```
+## Kaplan-Meier Survival for smoking
+
+```{r}
+df_smoking = as.factor(df$smoking) 
+df_smoking_fit = surv_fit(Surv(df_time,df_death)~df_smoking, data=df) 
+plot(df_smoking_fit, main = "Kaplan-Meier Survival Function for smoking", xlab = "Time in Days ", ylab = "S(t)", col= c("blue","red")) 
+legend("bottomleft",legend = c("Non smoking","Smoking"),fill=c("blue","red"))
+```
+## Kaplan-Meier Survival for diabetes
+
+```{r}
+df_diabetes = as.factor(df$diabetes) 
+df_diabetes_fit = surv_fit(Surv(df_time,df_death)~df_diabetes, data=df) 
+plot(df_diabetes_fit, main = "Kaplan-Meier Survival Function for diabetes", xlab = "Time in Days ", ylab = "S(t)", col= c("blue","red")) 
+legend("bottomleft",legend = c("Non diabete","diabete"),fill=c("blue","red"))
+```
+## Kaplan-Meier Survival for high blood pressure
+
+```{r}
+df_blood = as.factor(df$high_blood_pressure) 
+df_blood_fit = surv_fit(Surv(df_time,df_death)~df_blood, data=df) 
+plot(df_blood_fit, main = "Kaplan-Meier Survival Function for Blood Pressure", xlab = "Time in Days ", ylab = "S(t)", col= c("blue","red")) 
+legend("bottomleft",legend = c("Non high blood pressure","High blood pessure"),fill=c("blue","red"))
+```
+
+```{r}
+quantile(df_anaemia_fit,0.25)
+```
+```{r}
+quantile(df_blood_fit,0.25)
+```
+
+
+
+## Cox Proportional Hazard Model
+
+```{r}
+cox_fit = coxph(Surv(df_time,df_death) ~ age + creatinine_phosphokinase + anaemia + diabetes + ejection_fraction + high_blood_pressure + platelets + serum_creatinine + serum_sodium + sex + smoking, df)
+cox_fit
+```
+
+```{r}
+anova(cox_fit)
+```
+
+We can see from ANOVA table : **age**, **ejection_fraction**, **high_blood_pressure** and **serum_creatinine** are significant.
+
+We fit the new model with the four significant variables
+
+```{r}
+cox2_fit = coxph(Surv(df_time,df_death) ~ age +ejection_fraction + high_blood_pressure+ serum_creatinine, data=df) 
+cox2_fit
+```
+
+## Relevant Papers:
+
+Davide Chicco, Giuseppe Jurman: "Machine learning can predict survival of patients with heart failure from serum creatinine and ejection fraction alone". BMC Medical Informatics and Decision Making 20, 16 (2020).https://doi.org/10.1186/s12911-020-1023-5
+
+https://www.sciencedirect.com/science/article/pii/S2001037016300460
+
